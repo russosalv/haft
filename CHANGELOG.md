@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [9.1.1-nonoise.1] — 2026-10-16
+
+Temporary nonoise fork of v9.1.0 addressing
+[#122](https://github.com/m0n0x41d/haft/issues/122): new-project initialization
+failed after the execution role baseline expired on 2026-09-18.
+
+- Select execution RolePolicy v2 for new writes, renewing the unchanged SS/TS
+  semantic baselines through 2027-12-31 under the fork operator's authority.
+  Preserve the exact upstream v1 policy bytes and digest for historical reads;
+  v1 cannot authorize new effects.
+- Restore published migration 47 and add snapshot-backed migration 60 for
+  edition-specific Permission windows, preserving historical rows, foreign
+  keys, indexes and triggers. Downgrades require the pre-migration snapshot.
+- Restore the ProblemCard v1 profile date: it is descriptive envelope metadata,
+  not a runtime expiry gate, and does not participate in the profile-body hash.
+- Cover historical decoding, post-expiry v2 writes, migration preservation and
+  expiry boundaries. This fork still has a finite expiry; upstream must define
+  the next renewal and its source-authority provenance before 2028.
+
 ## [9.1.0] — 2026-08-11
 
 [v9.1.0](https://github.com/m0n0x41d/haft/releases/tag/v9.1.0) is a minor

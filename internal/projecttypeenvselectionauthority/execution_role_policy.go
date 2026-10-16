@@ -53,9 +53,9 @@ const (
 	executionRoleTSCarrierDigest = "sha256:08e2059114caf77524cf57d1ebb3bc3e5af708a8ca8284388e0069800c458db0"
 
 	executionRoleSSBaselineCapturedAt = "2026-07-15T19:44:27.046111Z"
-	executionRoleSSValidUntil         = "2026-10-31T23:59:59Z"
+	executionRoleSSValidUntil         = "2027-12-31T23:59:59Z"
 	executionRoleTSBaselineCapturedAt = "2026-07-15T19:44:26.946907Z"
-	executionRoleTSValidUntil         = "2026-09-18T23:59:59Z"
+	executionRoleTSValidUntil         = "2027-12-31T23:59:59Z"
 	executionRoleSourceApprovedBy     = "ivanzakutnii"
 
 	executionRoleContractPayloadV1 = "This policy admits HaftSoftwareSystem as holder of the ProjectGovernanceSubstrate role in one exact project BoundedContext and finite assignment window. Source-grounded FPF retrieval and typed-project-memory capabilities are neighboring role qualification conditions. The RoleAssignment alone establishes neither a capability, gate passage, Permission, nor performed Work; separately governed method, authority, and evidence relations decide whether a head-selection Work occurrence may happen."

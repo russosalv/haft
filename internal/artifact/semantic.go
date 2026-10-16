@@ -18,7 +18,7 @@ const (
 
 	problemSemanticProfileID       = "haft-semantic-spine-v3.problem-card.v1"
 	problemSemanticProfileSource   = "embedded:haft-semantic-spine-v3/problem-card-v1"
-	problemSemanticProfileValidTil = "2026-09-18T00:00:00Z"
+	problemSemanticProfileValidTil = "2027-12-31T00:00:00Z"
 )
 
 const problemSemanticProfileBody = `profile_id: haft-semantic-spine-v3.problem-card.v1

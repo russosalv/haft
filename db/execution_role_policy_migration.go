@@ -27,11 +27,17 @@ func applyExecutionRolePolicyMigration60(tx MigrationTransaction, _ []Migration)
 	if source != projectTypeEnvPermissionsV3Table47() {
 		return fmt.Errorf("execution RolePolicy migration requires exact published v47 Permission table")
 	}
+	// Preserve relative trigger creation order on every affected table. Replacing
+	// only a dependency trigger could move it ahead of a later historical-write
+	// seal and change which authority boundary reports the rejected operation.
 	rows, err := tx.Query(`SELECT type, name, sql FROM sqlite_master
  WHERE sql IS NOT NULL AND (
   (type = 'index' AND tbl_name = ?) OR
-  (type = 'trigger' AND (tbl_name = ? OR instr(sql, ?) > 0))
- ) ORDER BY type, name`, table, table, table)
+  (type = 'trigger' AND tbl_name IN (
+   SELECT tbl_name FROM sqlite_master WHERE type = 'trigger'
+    AND (tbl_name = ? OR instr(sql, ?) > 0)
+  ))
+ ) ORDER BY rowid`, table, table, table)
 	if err != nil {
 		return err
 	}

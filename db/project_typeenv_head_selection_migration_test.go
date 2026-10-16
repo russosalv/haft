@@ -1026,9 +1026,13 @@ func TestProjectTypeEnvHeadSelectionMigration47AcceptsStrictPermissionResolution
 	t *testing.T,
 ) {
 	t.Parallel()
-
-	database, basisTypeEnvRef := newTypedMemoryRawSQLDatabase46(t, true)
+	database := newStrictPermissionDatabase47(t)
 	defer database.Close()
+}
+
+func newStrictPermissionDatabase47(t *testing.T) *sql.DB {
+	t.Helper()
+	database, basisTypeEnvRef := newTypedMemoryRawSQLDatabase46(t, true)
 	migrateProjectTypeEnvHeadSelection47(t, database)
 	resultTypeEnvRef := insertSecondProjectTypeEnvExecutable47(t, database)
 	fixture := newProjectTypeEnvHeadEffectFixture47(
@@ -1467,6 +1471,7 @@ func TestProjectTypeEnvHeadSelectionMigration47AcceptsStrictPermissionResolution
 		assertTypedMemoryTableRowCount45(t, database, table, 1)
 	}
 	assertTypedMemoryForeignKeysClean45(t, database)
+	return database
 }
 
 func migrateProjectTypeEnvHeadSelection47(

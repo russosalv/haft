@@ -1912,7 +1912,7 @@ func projectTypeEnvPermissionsV3Table47() string {
 			AND julianday(subject_assignment_from) >=
 				julianday('2026-07-15T19:44:27.046111Z')
 			AND julianday(subject_assignment_until) <=
-				julianday('2027-12-31T23:59:59Z')
+				julianday('2026-09-18T23:59:59Z')
 		)
 	) WITHOUT ROWID`
 }

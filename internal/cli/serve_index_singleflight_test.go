@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m0n0x41d/haft/db"
 	"github.com/m0n0x41d/haft/internal/artifact"
 	"github.com/m0n0x41d/haft/internal/codeintel"
 	"github.com/spf13/cobra"
@@ -101,8 +102,12 @@ func TestServeStdioMultiProcessAutomaticMigrationSingleFlight(t *testing.T) {
 	).Scan(&frontier); err != nil {
 		t.Fatal(err)
 	}
-	if frontier != 59 {
-		t.Fatalf("stdio-migrated schema frontier = %d, want 59", frontier)
+	currentSchema, err := db.CurrentSchemaVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frontier != currentSchema {
+		t.Fatalf("stdio-migrated schema frontier = %d, want %d", frontier, currentSchema)
 	}
 	var invalidRows int
 	if err := check.QueryRow(
@@ -113,7 +118,7 @@ func TestServeStdioMultiProcessAutomaticMigrationSingleFlight(t *testing.T) {
 	if invalidRows != 0 {
 		t.Fatalf("stdio-migrated invalid path rows = %d, want 0", invalidRows)
 	}
-	for _, boundary := range []string{"v57-to-v58", "v58-to-v59"} {
+	for _, boundary := range []string{"v57-to-v58", "v58-to-v59", "v59-to-v60"} {
 		backups, err := filepath.Glob(
 			filepath.Join(filepath.Dir(binding.DBPath), "*.pre-serve-migration-"+boundary+"-*.bak"),
 		)

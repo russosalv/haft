@@ -172,7 +172,7 @@ func TestExecutionRolePolicyAndAssignmentSupportAreSourceExact(t *testing.T) {
 	}
 	staleEdition := bytes.Replace(
 		subject.CanonicalJSON(),
-		[]byte(`"assignment_policy_edition_ref":"`+executionRolePolicyEditionV1+`"`),
+		[]byte(`"assignment_policy_edition_ref":"`+currentExecutionRolePolicy+`"`),
 		[]byte(`"assignment_policy_edition_ref":"policy-edition:project-typeenv-head-selection-execution-role/v0"`),
 		1,
 	)
@@ -183,8 +183,8 @@ func TestExecutionRolePolicyAndAssignmentSupportAreSourceExact(t *testing.T) {
 	}
 
 	expiredWindow, err := authority.NewTimeWindow(
-		time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC),
-		time.Date(2026, 9, 19, 1, 0, 0, 0, time.UTC),
+		policy.SourceValidity().Until().Add(time.Second),
+		policy.SourceValidity().Until().Add(time.Hour),
 	)
 	if err != nil {
 		t.Fatalf("NewTimeWindow(expired source): %v", err)
@@ -883,4 +883,80 @@ func testConfigAuthorityBasis(
 		t.Fatalf("SealProjectTypeEnvHeadSelectionConfigAuthorityBasis: %v", err)
 	}
 	return basis
+}
+
+// A successor must not rewrite the identity of previously sealed assignments.
+func TestExecutionRolePolicySuccessorPreservesV1AndWritesAfterExpiry(t *testing.T) {
+	fixture := buildAuthorityFixture(t)
+	historical, err := projectTypeEnvHeadSelectionExecutionRolePolicyForEdition(executionRolePolicyEditionV1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if historical.Digest().String() != "sha256:85ec4c0e6572579d973bfbebf977a48732dc87bd56a83f74b2fcd2ab21b7b9ed" {
+		t.Fatal("published v1 policy identity changed")
+	}
+	subject, err := sealProjectTypeEnvHeadSelectionPermissionSubjectWithPolicy(fixture.content, historical, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := DecodeProjectTypeEnvHeadSelectionPermissionSubject(subject.CanonicalJSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := decoded.Verify(fixture.content); err != nil {
+		t.Fatal(err)
+	}
+
+	variant := defaultSpeechActSourceVariant(t, fixture.content, fixture.request)
+	speechAct := mustAuthorityValue(t, authority.NewSpeechActRef, variant.speechActRef)
+	permissionRef, err := deriveProjectTypeEnvHeadSelectionPermissionRefWithSubject(fixture.content, speechAct, subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	variant.institutedObject = permissionRef.String()
+	source := buildSpeechActSourceVariant(t, fixture.content, fixture.request, fixture.content.ValidityWindow().From().Add(10*time.Minute), variant)
+	record, err := sealProjectTypeEnvHeadSelectionPermissionRecordWithSubject(fixture.content, source, subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := DecodeProjectTypeEnvHeadSelectionPermissionRecord(fixture.content, source, record.CanonicalJSON(), record.Digest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := recovered.Verify(fixture.content, source); err != nil {
+		t.Fatal(err)
+	}
+	if err := decoded.VerifyCurrentForUse(fixture.content); err == nil {
+		t.Fatal("historical v1 authorized a new effect")
+	}
+	window, err := authority.NewTimeWindow(time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC), time.Date(2026, 9, 19, 1, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := SealProjectTypeEnvHeadSelectionAuthorizationContent(ProjectTypeEnvHeadSelectionAuthorizationContentInput{
+		DescriptionRef: fixture.content.DescriptionRef(), Request: fixture.content.Request(), Stage: fixture.content.Stage(),
+		JudgementContext: fixture.content.JudgementContext(), ValidityWindow: window,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := SealProjectTypeEnvHeadSelectionPermissionSubject(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.AssignmentPolicy().Edition().String() != "policy-edition:project-typeenv-head-selection-execution-role/v2" {
+		t.Fatal("new assignment did not select v2")
+	}
+	if err := current.VerifyCurrentForUse(content); err != nil {
+		t.Fatal(err)
+	}
+
+	currentSource := buildSpeechActSource(t, content, fixture.request, window.From().Add(10*time.Minute), false)
+	currentRecord, err := SealProjectTypeEnvHeadSelectionPermissionRecord(content, currentSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := currentRecord.Verify(content, currentSource); err != nil {
+		t.Fatal(err)
+	}
 }

@@ -31,7 +31,8 @@ const (
 	executionAssignmentProvenanceRefPrefix = "role-assignment-provenance:project-typeenv-head-selection:"
 
 	executionRolePolicyEditionV1 = "policy-edition:project-typeenv-head-selection-execution-role/v1"
-	currentExecutionRolePolicy   = executionRolePolicyEditionV1
+	executionRolePolicyEditionV2 = "policy-edition:project-typeenv-head-selection-execution-role/v2"
+	currentExecutionRolePolicy   = executionRolePolicyEditionV2
 	executionRoleHolderSystem    = "system:haft-software-system"
 	executionRole                = "role:project-governance-substrate"
 
@@ -53,9 +54,10 @@ const (
 	executionRoleTSCarrierDigest = "sha256:08e2059114caf77524cf57d1ebb3bc3e5af708a8ca8284388e0069800c458db0"
 
 	executionRoleSSBaselineCapturedAt = "2026-07-15T19:44:27.046111Z"
-	executionRoleSSValidUntil         = "2027-12-31T23:59:59Z"
+	executionRoleSSValidUntil         = "2026-10-31T23:59:59Z"
 	executionRoleTSBaselineCapturedAt = "2026-07-15T19:44:26.946907Z"
-	executionRoleTSValidUntil         = "2027-12-31T23:59:59Z"
+	executionRoleTSValidUntil         = "2026-09-18T23:59:59Z"
+	executionRoleV2ValidUntil         = "2027-12-31T23:59:59Z"
 	executionRoleSourceApprovedBy     = "ivanzakutnii"
 
 	executionRoleContractPayloadV1 = "This policy admits HaftSoftwareSystem as holder of the ProjectGovernanceSubstrate role in one exact project BoundedContext and finite assignment window. Source-grounded FPF retrieval and typed-project-memory capabilities are neighboring role qualification conditions. The RoleAssignment alone establishes neither a capability, gate passage, Permission, nor performed Work; separately governed method, authority, and evidence relations decide whether a head-selection Work occurrence may happen."
@@ -256,7 +258,14 @@ func projectTypeEnvHeadSelectionExecutionRolePolicyForEdition(
 ) (ProjectTypeEnvHeadSelectionExecutionRolePolicy, error) {
 	switch edition {
 	case executionRolePolicyEditionV1:
-		return buildProjectTypeEnvHeadSelectionExecutionRolePolicyV1()
+		return buildProjectTypeEnvHeadSelectionExecutionRolePolicy(edition, executionRoleSSValidUntil, executionRoleTSValidUntil, executionRoleSourceApprovedBy)
+	case executionRolePolicyEditionV2:
+		// The fork operator renews validity over the unchanged semantic source.
+		// Capture timestamps and digests identify the original July carriers;
+		// approved_by identifies the authority for this edition's renewal,
+		// not a claim that the fork operator captured those carriers in July.
+		// The published v1 bytes remain immutable.
+		return buildProjectTypeEnvHeadSelectionExecutionRolePolicy(edition, executionRoleV2ValidUntil, executionRoleV2ValidUntil, "nonoise")
 	default:
 		return ProjectTypeEnvHeadSelectionExecutionRolePolicy{}, fmt.Errorf(
 			"unsupported head-selection execution RolePolicy edition %q",
@@ -265,11 +274,11 @@ func projectTypeEnvHeadSelectionExecutionRolePolicyForEdition(
 	}
 }
 
-func buildProjectTypeEnvHeadSelectionExecutionRolePolicyV1() (
+func buildProjectTypeEnvHeadSelectionExecutionRolePolicy(editionRef, ssValidUntil, tsValidUntil, approvedBy string) (
 	ProjectTypeEnvHeadSelectionExecutionRolePolicy,
 	error,
 ) {
-	edition, err := authority.NewPolicyVersion(executionRolePolicyEditionV1)
+	edition, err := authority.NewPolicyVersion(editionRef)
 	if err != nil {
 		return ProjectTypeEnvHeadSelectionExecutionRolePolicy{}, err
 	}
@@ -308,9 +317,9 @@ func buildProjectTypeEnvHeadSelectionExecutionRolePolicyV1() (
 				CarrierRef:         executionRoleSSCarrierRef,
 				CarrierDigest:      executionRoleSSCarrierDigest,
 				Lifecycle:          "active_current_baseline",
-				ApprovedBy:         executionRoleSourceApprovedBy,
+				ApprovedBy:         approvedBy,
 				BaselineCapturedAt: executionRoleSSBaselineCapturedAt,
-				ValidUntil:         executionRoleSSValidUntil,
+				ValidUntil:         ssValidUntil,
 			},
 			{
 				SectionRef:         executionRoleTSSectionRef,
@@ -318,9 +327,9 @@ func buildProjectTypeEnvHeadSelectionExecutionRolePolicyV1() (
 				CarrierRef:         executionRoleTSCarrierRef,
 				CarrierDigest:      executionRoleTSCarrierDigest,
 				Lifecycle:          "active_current_baseline",
-				ApprovedBy:         executionRoleSourceApprovedBy,
+				ApprovedBy:         approvedBy,
 				BaselineCapturedAt: executionRoleTSBaselineCapturedAt,
-				ValidUntil:         executionRoleTSValidUntil,
+				ValidUntil:         tsValidUntil,
 			},
 		},
 		NewWriteSelection: "closed_registry_current",
@@ -334,7 +343,7 @@ func buildProjectTypeEnvHeadSelectionExecutionRolePolicyV1() (
 	if err != nil {
 		return ProjectTypeEnvHeadSelectionExecutionRolePolicy{}, err
 	}
-	sourceValidity, err := executionRolePolicySourceValidity()
+	sourceValidity, err := executionRolePolicySourceValidity(ssValidUntil, tsValidUntil)
 	if err != nil {
 		return ProjectTypeEnvHeadSelectionExecutionRolePolicy{}, err
 	}
@@ -401,14 +410,21 @@ func (policy ProjectTypeEnvHeadSelectionExecutionRolePolicy) VerifyCurrentForNew
 	return nil
 }
 
-func executionRolePolicySourceValidity() (authority.TimeWindow, error) {
+func executionRolePolicySourceValidity(ssValidUntil, tsValidUntil string) (authority.TimeWindow, error) {
 	from, err := parseTime(executionRoleSSBaselineCapturedAt)
 	if err != nil {
 		return authority.TimeWindow{}, err
 	}
-	until, err := parseTime(executionRoleTSValidUntil)
+	until, err := parseTime(tsValidUntil)
 	if err != nil {
 		return authority.TimeWindow{}, err
+	}
+	ssUntil, err := parseTime(ssValidUntil)
+	if err != nil {
+		return authority.TimeWindow{}, err
+	}
+	if ssUntil.Before(until) {
+		until = ssUntil
 	}
 	return authority.NewTimeWindow(from, until)
 }

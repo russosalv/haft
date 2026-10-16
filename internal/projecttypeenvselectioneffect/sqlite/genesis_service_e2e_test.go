@@ -411,6 +411,11 @@ func TestGenesisSelectionFeedsProjectCurrentValidationAdmissionAndReplay(
 
 func newGenesisE2EFixture(t *testing.T) genesisE2EFixture {
 	t.Helper()
+	return newGenesisE2EFixtureAt(t, time.Date(2026, 7, 17, 9, 30, 0, 0, time.UTC))
+}
+
+func newGenesisE2EFixtureAt(t *testing.T, now time.Time) genesisE2EFixture {
+	t.Helper()
 	ctx := context.Background()
 	root := filepath.Join(t.TempDir(), "project")
 	harness := profileadmissionfixture.New(t, root)
@@ -433,7 +438,7 @@ func newGenesisE2EFixture(t *testing.T) genesisE2EFixture {
 		t.Fatalf("PutArtifactClosure(): %v", err)
 	}
 	clock := genesisE2EClock{
-		value: time.Date(2026, 7, 17, 9, 30, 0, 0, time.UTC),
+		value: now,
 	}
 	initializeGenesisE2EProjectGraph(
 		t,
@@ -1452,5 +1457,28 @@ func assertGenesisE2EProofBinding(
 				proofDigest,
 			)
 		}
+	}
+}
+
+func TestGenesisServiceWritesV2AfterV1BaselineExpiry(t *testing.T) {
+	fixture := newGenesisE2EFixtureAt(t, time.Date(2026, 9, 19, 9, 30, 0, 0, time.UTC))
+	result, err := fixture.service.SelectGenesis(context.Background(), genesisSelectionInput(fixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, ok := result.(projecttypeenvselectioneffect.FreshlyCommitted)
+	if !ok {
+		t.Fatalf("post-expiry write = %T, want FreshlyCommitted", result)
+	}
+	if err := fresh.Closure().Verify(); err != nil {
+		t.Fatal(err)
+	}
+	assertGenesisE2ECommittedFootprint(t, fixture, fresh.Closure())
+	subject, err := projecttypeenvselectionauthority.SealProjectTypeEnvHeadSelectionPermissionSubject(fixture.content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subject.AssignmentPolicy().Edition().String() != "policy-edition:project-typeenv-head-selection-execution-role/v2" {
+		t.Fatal("post-expiry effect did not select v2")
 	}
 }

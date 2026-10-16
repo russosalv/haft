@@ -1,0 +1,78 @@
+name: NONoise fork — darwin-arm64 asset
+
+# Temporary NONoise fork: builds the darwin-arm64 archive for an existing
+# release (linux assets are built outside CI) and appends it to checksums.txt.
+# Manual only, so the inherited upstream workflows never publish anything.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and upload to (e.g. v9.1.1-nonoise.1)
+        required: true
+      upstream_tag:
+        description: Upstream release providing the prebuilt haft-embed sidecar
+        required: true
+        default: v9.1.0
+
+permissions:
+  contents: write
+
+jobs:
+  darwin-arm64:
+    runs-on: macos-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - name: Init embedded data submodule only (docs uses SSH)
+        run: git submodule update --init data/FPF
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Build
+        env:
+          CGO_ENABLED: '1'
+          GOOS: darwin
+          GOARCH: arm64
+        run: |
+          version="${TAG#v}"
+          short_sha=$(git rev-parse --short=8 HEAD)
+          go build -trimpath \
+            -ldflags "-s -w \
+              -X github.com/m0n0x41d/haft/internal/cli.Version=$version \
+              -X github.com/m0n0x41d/haft/internal/cli.Commit=$short_sha \
+              -X github.com/m0n0x41d/haft/internal/cli.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o haft ./cmd/haft/
+          ./haft --version
+          ./haft --version | grep -Fw "$version"
+      - name: Reuse upstream haft-embed sidecar (verified)
+        run: |
+          mkdir -p _up && cd _up
+          gh release download "$UPSTREAM_TAG" -R m0n0x41d/haft -p haft-darwin-arm64.tar.gz -p checksums.txt
+          grep ' haft-darwin-arm64.tar.gz$' checksums.txt | shasum -a 256 -c -
+          tar xzf haft-darwin-arm64.tar.gz runtimes
+          cd .. && mv _up/runtimes runtimes
+          test -x runtimes/haft-embed/bin/haft-embed
+      - name: Package
+        run: |
+          mkdir -p _dist
+          tar czf _dist/haft-darwin-arm64.tar.gz haft runtimes README.md LICENSE CHANGELOG.md
+          tar -tzf _dist/haft-darwin-arm64.tar.gz | head -3
+      - name: Smoke packaged archive
+        run: |
+          mkdir -p _smoke && tar xzf _dist/haft-darwin-arm64.tar.gz -C _smoke -- haft
+          _smoke/haft --version | grep -Fw "${TAG#v}"
+      - name: Upload and append checksum
+        run: |
+          gh release upload "$TAG" _dist/haft-darwin-arm64.tar.gz --clobber
+          gh release download "$TAG" -p checksums.txt -D _sum
+          grep -v ' haft-darwin-arm64.tar.gz$' _sum/checksums.txt > checksums.txt || true
+          (cd _dist && shasum -a 256 haft-darwin-arm64.tar.gz) >> checksums.txt
+          cat checksums.txt
+          gh release upload "$TAG" checksums.txt --clobber

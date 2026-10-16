@@ -159,10 +159,14 @@ func assertFrozenLegacyV1StorageBoundary(
 	); err != nil {
 		t.Fatalf("inspect frozen legacy-v1 schema frontier: %v", err)
 	}
-	if maximumVersion != 59 {
+	current, err := db.CurrentSchemaVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if maximumVersion != current {
 		t.Fatalf(
-			"frozen legacy-v1 schema frontier = %d; want 59",
-			maximumVersion,
+			"frozen legacy-v1 schema frontier = %d; want %d",
+			maximumVersion, current,
 		)
 	}
 }

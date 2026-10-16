@@ -18,6 +18,7 @@ import (
 	"github.com/m0n0x41d/haft/db"
 	"github.com/m0n0x41d/haft/internal/project"
 	"github.com/m0n0x41d/haft/internal/projectledger"
+	"github.com/m0n0x41d/haft/internal/testsupport/kerneldbfixture"
 )
 
 const bundledPrebindingSchema35Digest = "sha256:3377719306d4ae76e4db7cf1286ae985b92d85f20b5278bd1622b1ad7edf0828"
@@ -853,6 +854,22 @@ func newUnboundSchemaFrontierFixture(
 
 func newCurrentProjectFixture(t *testing.T) currentProjectFixture {
 	t.Helper()
+	return newProjectFixtureWithStore(t, func(path string) error {
+		store, err := db.NewStore(path)
+		if err != nil {
+			return err
+		}
+		return store.Close()
+	})
+}
+
+func newSchema57ProjectFixture(t *testing.T) currentProjectFixture {
+	t.Helper()
+	return newProjectFixtureWithStore(t, kerneldbfixture.CreateSchema57)
+}
+
+func newProjectFixtureWithStore(t *testing.T, create func(string) error) currentProjectFixture {
+	t.Helper()
 	home := canonicalTempDir(t)
 	root := canonicalTempDir(t)
 	t.Setenv("HOME", home)
@@ -868,12 +885,8 @@ func newCurrentProjectFixture(t *testing.T) currentProjectFixture {
 	if err != nil {
 		t.Fatalf("DBPath: %v", err)
 	}
-	store, err := db.NewStore(databasePath)
-	if err != nil {
-		t.Fatalf("db.NewStore: %v", err)
-	}
-	if err := store.Close(); err != nil {
-		t.Fatalf("close current store: %v", err)
+	if err := create(databasePath); err != nil {
+		t.Fatalf("create fixture store: %v", err)
 	}
 	boundAt := time.Date(2026, time.July, 22, 12, 0, 0, 0, time.UTC)
 	if err := projectledger.BindInitialized(context.Background(), root, boundAt); err != nil {

@@ -17,6 +17,7 @@ import (
 	"github.com/m0n0x41d/haft/internal/project"
 	"github.com/m0n0x41d/haft/internal/project/specflow"
 	"github.com/m0n0x41d/haft/internal/projectledger"
+	"github.com/m0n0x41d/haft/internal/testsupport/kerneldbfixture"
 )
 
 func TestRunSpecSyncImportsTypedSectionsIntoSQLWithoutBaselines(t *testing.T) {
@@ -283,6 +284,11 @@ func TestSyncProjectSpecificationSetToSQLExactSectionRejectsMissingCarrier(
 
 func setupSpecSyncProject(t *testing.T) string {
 	t.Helper()
+	return setupSpecSyncProjectWithSchema(t, false)
+}
+
+func setupSpecSyncProjectWithSchema(t *testing.T, historical57 bool) string {
+	t.Helper()
 	home, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -301,9 +307,23 @@ func setupSpecSyncProject(t *testing.T) string {
 	writeSpecCheckCLIFile(t, filepath.Join(specDir, "target-system.md"), validCLISpecSectionCarrier("TS.sync.001", "acceptance"))
 	writeSpecCheckCLIFile(t, filepath.Join(specDir, "software-system.md"), validCLISpecSectionCarrier("SS.sync.001", "software.role"))
 	writeSpecCheckCLIFile(t, filepath.Join(specDir, "term-map.md"), validCLITermMapCarrier())
-	database := openSpecSyncDB(t, root)
-	if err := database.Close(); err != nil {
-		t.Fatal(err)
+	if historical57 {
+		cfg, err := project.Load(haftDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		path, err := cfg.DBPath()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := kerneldbfixture.CreateSchema57(path); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		database := openSpecSyncDB(t, root)
+		if err := database.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := projectledger.BindInitialized(
 		context.Background(),

@@ -1,0 +1,16 @@
+Immutable empty SQLite kernel fixture, schema 57.
+Uncompressed SHA256: 3b369127ab7f7e238ac62fa6ba064dcab4afc37880b61c41b1fe0bbae7bfc473
+Generated with Go 1.25.8 and modernc.org/sqlite from the unchanged v9.1.0
+migration prefix (including the original, published migration 47).
+
+Generation in a temporary package-db test:
+  conn, err := sql.Open("sqlite", destination)
+  // Require no error after every operation.
+  conn.Exec(schema)
+  RunMigrationsThrough(conn, 57)
+  conn.Close()
+Compress the resulting database with gzip, mtime=0.
+
+No project identity or operator data is installed. The fixture is restored
+before project-ledger binding by migration/startup tests. It must not be
+regenerated from the current database by deleting schema_version rows.

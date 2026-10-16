@@ -28,7 +28,7 @@ import (
 const stdioSingleFlightResponseTimeout = 2 * time.Minute
 
 func TestServeStdioMultiProcessAutomaticMigrationSingleFlight(t *testing.T) {
-	root := setupSpecSyncProject(t)
+	root := setupSpecSyncProjectWithSchema(t, true)
 	input, err := absProjectRootInput(root, "stdio-migration-singleflight-test")
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,6 @@ func TestServeStdioMultiProcessAutomaticMigrationSingleFlight(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, mutationErr := database.Exec(`
-		DELETE FROM schema_version WHERE version >= 58;
 		INSERT INTO artifacts (
 			id, kind, title, content, created_at, updated_at
 		) VALUES (
